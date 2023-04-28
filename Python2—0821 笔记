@@ -1,0 +1,130 @@
+表设计
+admin 增加数据
+表设计
+model.py
+
+代码
+
+class UserInfo(models.Model):
+
+    name = models.CharField(max\_length=16,blank=True, null=True, verbose\_name='登录用户名')
+
+    password = models.CharField(max\_length=128, blank=True, null=True, verbose\_name='登录密码')
+
+    department = models.CharField(max\_length=32, blank=True, null=True, verbose\_name='所属部门')
+
+    pos = models.ForeignKey(to='Position',blank=True, null=True,verbose\_name='职位',related\_name='uspos' )
+
+    def \_\_str\_\_(self):
+
+        return self.name
+
+    class Meta:
+
+        verbose\_name\_plural = "用户表"     #用于显示名字
+
+class Position(models.Model):
+
+    name = models.CharField(max\_length=16, blank=True, null=True, verbose\_name='职位名')
+
+    auth = models.ManyToManyField(to='Auth', blank=True, null=True,verbose\_name='权限',related\_name='posau')
+
+    def \_\_str\_\_(self):
+
+        return self.name
+
+    class Meta:
+
+        verbose\_name\_plural = "职位表"
+
+class Auth(models.Model):
+
+    url = models.CharField(max\_length=64, blank=True, null=True, verbose\_name='路径')
+
+    name = models.CharField(max\_length=16, blank=True, null=True, verbose\_name='显示')
+
+    group = models.ForeignKey(to='AuthGroup',blank=True, null=True,verbose\_name='组',related\_name='augro')
+
+    to\_display = models.ForeignKey(to='Auth',blank=True, null=True,verbose\_name='显示',related_name='authauth')
+
+    def \_\_str\_\_(self):
+
+        return self.name
+
+    class Meta:
+
+        verbose\_name\_plural = "权限表"
+
+class AuthGroup(models.Model):
+
+    name = models.CharField(max\_length=16, blank=True, null=True, verbose\_name='组名')
+
+    ti = models.ForeignKey(to='Menu',blank=True, null=True,verbose\_name='菜单',related\_name='grmen')
+
+    def \_\_str\_\_(self):
+
+        return self.name
+
+    class Meta:
+
+        verbose\_name\_plural = "组表"
+
+class Menu(models.Model):
+
+    title = models.CharField(max\_length=16, blank=True, null=True, verbose\_name='菜单名')
+
+    def \_\_str\_\_(self):
+
+        return self.title
+
+    class Meta:
+
+        verbose\_name\_plural = "菜单"
+
+admin 增加数据
+admin.py
+
+代码
+
+from django.contrib import admin
+
+from demo01 import models
+
+admin.site.register(models.UserInfo)
+
+admin.site.register(models.Position)
+
+admin.site.register(models.Auth)
+
+admin.site.register(models.AuthGroup)
+
+admin.site.register(models.Menu)
+auth_server\urls.py
+
+代码
+
+from django.conf.urls import url,include
+
+from django.contrib import admin
+
+from auth_server import views
+
+urlpatterns = \[
+
+    #/auth/demo/
+
+    url(r'demo/$',views.auth_demo)
+
+    # url(r'user/list.html$', views.List.as_view()),
+
+    # url(r'user/add.html$', views.Add.as_view()),
+
+    # url(r'user/(\\d+)/update.html', views.Update.as_view()),
+
+    # url(r'user/(\\d+)/delete.html', views.Del.as_view()),
+
+\]
+
+#host/list views.List.as_view()),
+
+#host/add views.Add.as_view())
