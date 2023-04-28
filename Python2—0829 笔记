@@ -1,0 +1,110 @@
+
+1 需求梳理
+2 表设计
+需求梳理
+1. 完全自己开发一套发布系统
+
+            定时发布 / 立即发布
+
+            文件推送，获取状态
+
+            调用 salt-api/ansible-api 执行代码更新
+
+2. 结合 jenkins 部署
+
+            调用 jenkins-api
+
+            基于 jenkins-api 的数据表设计
+
+
+
+表设计
+models.py
+
+代码
+
+rom django.db import models
+
+class Record(models.Model):
+
+    timestamp = models.CharField(max\_length=64, blank=True, null=True, verbose\_name='时间')
+
+    project=models.ForeignKey(to='App', blank=True, null=True, verbose\_name='应用', related\_name='proj')
+
+    package=models.ManyToManyField(to='Package',blank=True, null=True, verbose\_name='代码', related\_name='pack')
+
+    env=models.ForeignKey(to='RecordEnv',blank=True, null=True, verbose\_name='环境', related\_name='env')
+
+    def \_\_str\_\_(self):
+
+        return self.timestamp
+
+    class Meta:
+
+        verbose\_name\_plural = "部署记录"
+
+class App(models.Model):
+
+    #/app/static/name
+
+    name=models.CharField(max\_length=32,blank=True,null=True,verbose\_name='应用名')
+
+    path=models.CharField(max\_length=64,blank=True,null=True,verbose\_name='应用路径')
+
+    environment =models.ForeignKey(to='RecordEnv',blank=True, null=True,verbose_name='环境')
+
+    hosts = models.ManyToManyField(to='Host', blank=True, null=True, verbose\_name='对应主机', related\_name='apphost')
+
+    # \_script = models.CharField(max\_length=64,blank=True,null=True,verbose_name='部署脚本')#单独就有一台主机去分发脚本
+
+    package=models.ForeignKey(to='Package',blank=True, null=True, verbose\_name='代码',related\_name='apppack')
+
+    \_app=models.ForeignKey(to='App',blank=True, null=True, verbose\_name='上级应用')
+
+    class Meta:
+
+        verbose\_name\_plural = "项目表"
+
+    def \_\_str\_\_(self):
+
+        return self.name
+
+class RecordEnv(models.Model):
+
+    name=models.CharField(max\_length=64, blank=True, null=True, verbose\_name='环境名')
+
+    def \_\_str\_\_(self):
+
+        return self.name
+
+    class Meta:
+
+        verbose\_name\_plural = "环境"
+
+class Host(models.Model):
+
+    hostname= models.CharField(max\_length=32, blank=True, null=True, verbose\_name='salt_id')
+
+    ip= models.CharField(max\_length=32, blank=True, null=True, verbose\_name='IP')
+
+    def \_\_str\_\_(self):
+
+        return self.hostname
+
+    class Meta:
+
+        verbose\_name\_plural = "主机表"
+
+class Package(models.Model):
+
+    name = models.CharField(max\_length=32, blank=True, null=True, verbose\_name='包名/版本号/需求编号等')
+
+    pack\_path = models.CharField(max\_length=64, blank=True, null=True, verbose_name='代码的路径')
+
+    def \_\_str\_\_(self):
+
+        return self.name
+
+    class Meta:
+
+        verbose\_name\_plural = "代码"
