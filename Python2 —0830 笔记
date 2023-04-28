@@ -1,0 +1,347 @@
+
+伪代码
+celery
+伪代码
+views.py
+
+代码
+
+from django.shortcuts import render,HttpResponse,redirect
+
+from django.views import View
+
+from demo1 import models
+
+def fabu(request):
+
+    if request.method=='GET':
+
+        env=models.RecordEnv.objects.all()
+
+        return render(request,'fabu.html',locals())
+
+    else:
+
+        env=request.POST.get('env')
+
+        app=request.POST.get('app')
+
+        obj\_li = models.App.objects.filter(name=app,environment\_\_name=env)
+
+        #拿到 对应的 主机组             代码-->地址
+
+        #循环 主机组    推送代码
+
+        app_name = 'payment'
+
+        host_li = \[{'id':'test','path':'/app/www/payment'},\]
+
+        package = 'svn://xxxxx'  #sh xxxx.sh
+
+        #第一步  :在 自动化管理平台  里面 下载代码 (可以打包)   subporcsess
+
+            # import os
+
+            # import sys
+
+            # path = os.getcwd() + r'/project_path/'
+
+            #subporcsess -->执行命令 cd  path
+
+                                    # mkdir $app\_name && cd $app\_name
+
+                                    # svn co $package
+
+                                    # 打包
+
+        #第二步  :推送  -->salt stack   state.sls
+
+                    #写 state.sls 规则的yml 文件
+
+                    # 通过python 代码  salt api  调用  state 触发 推送
+
+        #第三步   #执行远端代码   -->cmd.run      cd  路径  python xxx
+
+        return HttpResponse('ok')
+fabu.html
+
+代码
+
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <title>Title</title>
+
+</head>
+
+<body>
+
+<form method="post">
+
+    <label>应用:</label>
+
+    <input type="text" name="app">
+
+     <select class="form-control" id="numbers" name="env">
+
+            {% for item in env %}
+
+            <option value="{{ item.name }}">{{ item.name }}</option>
+
+            {% endfor %}
+
+    </select>
+
+    <input type="submit" value="提交">
+
+</form>
+
+</body>
+
+</html>
+将代码下载到 project_path 下 
+
+用 saltstack 推送
+
+或者 state.sls  推送
+
+celery
+celery 命令
+
+celery worker -A 发布 -l debug
+
+celery.py
+
+代码
+
+from \_\_future\_\_ import absolute\_import, unicode\_literals
+
+import os
+
+from celery import Celery
+
+from django.conf import settings
+
+\# set the default Django settings module for the 'celery' program.
+
+os.environ.setdefault('DJANGO\_SETTINGS\_MODULE', '发布.settings')
+
+app = Celery('发布')
+
+\# Using a string here means the worker don't have to serialize
+
+\# the configuration object to child processes.
+
+\# - namespace='CELERY' means all celery-related configuration keys
+
+#   should have a \`CELERY_\` prefix.   从 django settings里面拿取CELERY_
+
+\# app.config\_from\_object('django.conf:settings', namespace='CELERY')
+
+app.config\_from\_object('django.conf:settings')
+
+\# Load task modules from all registered Django app configs.
+
+app.autodiscover\_tasks(lambda: settings.INSTALLED\_APPS)
+
+@app.task(bind=True)
+
+def debug_task(self):
+
+    print('Request: {0!r}'.format(self.request))
+settings.py
+
+添加代码
+
+STATIC_URL = '/static/'
+
+import djcelery
+
+from celery.schedules import crontab
+
+from datetime import timedelta
+
+djcelery.setup_loader()
+
+CELERY\_TIMEZONE = TIME\_ZONE
+
+BROKER_URL='redis://:onda@47.93.86.201:6379/4'                      # 用自己的redis
+
+CELERY\_RESULT\_BACKEND='redis://:onda@47.93.86.201:6379/5'
+
+CELERY\_ACCEPT\_CONTENT = \['application/json'\]
+
+CELERY\_TASK\_SERIALIZER = 'json'
+
+CELERY\_RESULT\_SERIALIZER = 'json'
+
+CELERY_TIMEZONE = 'Africa/Nairobi'
+
+CELERY_IMPORTS=\['demo1.task',\]                                      #需要修改
+
+CELERYD\_MAX\_TASKS\_PER\_CHILD = 3
+
+CELERYBEAT_SCHEDULER = 'djcelery.schedulers.DatabaseScheduler'
+urls.py
+
+代码
+
+from django.conf.urls import url
+
+from django.contrib import admin
+
+from demo1 import views
+
+urlpatterns = \[
+
+    url(r'^admin/', admin.site.urls),
+
+    url(r'^fabu/', views.fabu),
+
+    url(r'^celery/', views.celery_status),
+views.py
+
+代码
+
+ef fabu(request):
+
+    if request.method=='GET':
+
+        env=models.RecordEnv.objects.all()
+
+        return render(request,'fabu.html',locals())
+
+    else:
+
+        env=request.POST.get('env')
+
+        app=request.POST.get('app')
+
+        obj\_li = models.App.objects.filter(name=app,environment\_\_name=env)
+
+        #拿到 对应的 主机组             代码-->地址
+
+        #循环 主机组    推送代码
+
+        app_name = 'payment'
+
+        host_li = \[{'id':'test','path':'/app/www/payment'},\]
+
+        package = 'svn://xxxxx'  #sh xxxx.sh
+
+        return HttpResponse('已存入队列中')
+
+def celery_status(req):
+
+    import datetime
+
+    import json
+
+    if req.method=='GET':
+
+        if req.GET.get('x') and req.GET.get('y'):
+
+            # 立即执行
+
+            # ret=add.delay(int(req.GET.get('x')),int(req.GET.get('y')))
+
+            if req.GET.get('after'):
+
+                ctime = datetime.datetime.now()
+
+                utc_ctime = datetime.datetime.utcfromtimestamp(ctime.timestamp())
+
+                s1 = datetime.timedelta(seconds=int(req.GET.get('after'))*60)
+
+                ctime\_x = utc\_ctime + s1
+
+                # 使用apply_async并设定时间
+
+            year=req.GET.get('year')
+
+            mouth=req.GET.get('month')
+
+            day=req.GET.get('day')
+
+            hour=req.GET.get('hour')
+
+            minute=req.GET.get('minute')
+
+            if year and mouth and day and hour and minute:
+
+                ctime = datetime.datetime(year=int(year), month=int(mouth),
+
+                                  day=int(day), hour=int(hour), minute=int(minute))
+
+                # 把当前本地时间转换成UTC时间
+
+                ctime_x = datetime.datetime.utcfromtimestamp(ctime.timestamp())
+
+            if ctime_x:
+
+                #最核心的  语句
+
+                ret = add.apply\_async(args=\[int(req.GET.get('x')), int(req.GET.get('y'))\], eta=ctime\_x)
+
+                num=ret.id
+
+        if req.GET.get('cancel'):
+
+            async = AsyncResult(id=req.GET.get('cancel'), app=app)
+
+            async.revoke(terminate=True)
+
+            cancel_tag='取消成功'
+
+        if req.GET.get('stop'):
+
+            async = AsyncResult(id=req.GET.get('stop'), app=app)
+
+            async.revoke()
+
+            stop_tag='中止成功'
+
+        return render(req,'celery.html',locals())
+
+    else:
+
+        ret=req.POST.get('id','')
+
+        data = ''
+
+        if ret:
+
+            async=AsyncResult(id=ret,app=app)
+
+            if async.successful():
+
+                data='执行成功,数据是:'+str(async.get())
+
+                async.forget()
+
+            elif async.failed():
+
+                data='执行失败'
+
+            elif async.status=='PENDING':
+
+                data='等待被执行'
+
+            elif async.status=='RETPY':
+
+                data='任务异常正在重试'
+
+            elif async.status=='STARTED':
+
+                data='任务正在执行'
+
+            else:
+
+                data='未知'
+
+        return render(req,'celery.html',locals())
