@@ -1,0 +1,539 @@
+权限代码演示
+左侧菜单的权限应用 demo
+权限代码演示
+登录后要做的两件事：
+
+1：把菜单相关的数据都拿到
+
+2：把用户所有能访问的 url 拿到
+
+1. 菜单
+
+{
+
+' 权限 ': {
+
+'title': ' 权限 ',
+
+'lower': [{
+
+'url': '/auth/user/list.html',
+
+'name': ' 查看用户 ',
+
+'display_url': None,
+
+'display_name': None
+
+}, {
+
+'url': '/auth/position/list.html',
+
+'name': ' 查看职位 ',
+
+'display_url': None,
+
+'display_name': None
+
+}, {
+
+'url': '/auth/auth/list.html',
+
+'name': ' 查看权限 ',
+
+'display_url': None,
+
+'display_name': None
+
+}, {
+
+'url': '/auth/authgroup/list.html',
+
+'name': ' 查看权限组 ',
+
+'display_url': None,
+
+'display_name': None
+
+}, {
+
+'url': '/auth/menu/list.html',
+
+'name': ' 查看菜单 ',
+
+'display_url': None,
+
+'display_name': None
+
+}]
+
+},
+
+' 主机 ': {
+
+'title': ' 主机 ',
+
+'lower': [{
+
+'url': '/host/list',
+
+'name': ' 查看主机 ',
+
+'display_url': None,
+
+'display_name': None
+
+}]
+
+}
+
+}
+
+2. 权限  -->django 中间件
+
+{
+
+' 用户表 ': {
+
+'url': ['/auth/user/list.html', '/auth/user/add.html', '/auth/user/(\\d+)/update.html', '/auth/user/(\\d+)/delete.html']
+
+},
+
+' 职位表 ': {
+
+'url': ['/auth/position/list.html', '/auth/position/add.html', '/auth/position/(\\d+)/delete.html', '/auth/position/(\\d+)/update.html']
+
+},
+
+' 权限表 ': {
+
+'url': ['/auth/auth/(\\d+)/update.html', '/auth/auth/list.html', '/auth/auth/add.html', '/auth/auth/(\\d+)/update.html', '/auth/authgroup/(\\d+)/delete.html']
+
+},
+
+' 权限组表 ': {
+
+'url': ['/auth/authgroup/(\\d+)/update.html', '/auth/authgroup/add.html', '/auth/authgroup/list.html']
+
+},
+
+' 菜单表 ': {
+
+'url': ['/auth/menu/add.html', '/auth/menu/list.html', '/auth/menu/(\\d+)/delete.html', '/auth/menu/(\\d+)/update.html']
+
+},
+
+' 主机 ': {
+
+'url': ['/host/list', '/host/add', '/host/edit/(\\d+)/', '/host/del/(\\d+)/']
+
+}
+
+}
+
+Python: ImportRequestsError: No module named 'requests' 解决方法
+运行 Python 程序时，出现下面错误：
+
+import requests  ModuleNotFoundError: No module named ‘requests’
+
+原因：没有导入 requests 库
+
+解决办法：
+
+开始菜单选择运行，输入 cmd 运行，然后 cd 命令进入到 python 安装目录下的 Scripts 文件中，
+
+然后输入 pip install requests，就好了。
+
+auth_server/views.py
+
+代码
+
+from django.shortcuts import render,HttpResponse
+
+from demo01 import models
+
+from utlis import login_auth
+
+def auth_demo(request):
+
+    if request.method == 'GET':
+
+        return render(request,'login.html',locals())
+
+    else:
+
+        username=request.POST.get('username','')
+
+        password=request.POST.get('password','')
+
+        user_obj=models.UserInfo.objects.filter(name=username,password=password)  #querysetList  \[queryset,\]
+
+        # user_obj=models.UserInfo.objects.filter(name=username,password=password).first()  #queryset
+
+        if user_obj.first():
+
+            #用户名  密码 输入正确
+
+            # login\_auth.menu\_auth(user_obj)
+
+            # for item in user_obj.pos.auth.all():
+
+            #     print(item.url,item.name)
+
+            obj=user\_obj.values('pos\_\_auth__url',
+
+                            'pos\_\_auth\_\_name',
+
+                            'pos\_\_auth\_\_to\_display\_\_url',
+
+                            'pos\_\_auth\_\_to\_display\_\_name',
+
+                            'pos\_\_auth\_\_group__name',
+
+                            'pos\_\_auth\_\_group\_\_ti\_\_title',
+
+                            )   #--\> \[{},{},{}\]
+
+            #菜单
+
+            menu_dic={}
+
+            for i in obj:
+
+                menu\_auth\_dic={
+
+                    'url':i.get('pos\_\_auth\_\_url'),
+
+                    'name':i.get('pos\_\_auth\_\_name'),
+
+                    'display\_url':i.get('pos\_\_auth\_\_to\_display__url'),
+
+                    'display\_name':i.get('pos\_\_auth\_\_to\_display__name'),
+
+                }
+
+                if i.get('pos\_\_auth\_\_group\_\_ti\_\_title') in menu_dic.keys():
+
+                    if not i.get('pos\_\_auth\_\_to\_display\_\_name'):
+
+                        menu\_dic\[i.get('pos\_\_auth\_\_group\_\_ti\_\_title')\]\['lower'\].append(menu\_auth_dic)
+
+                else:
+
+                    menu\_dic\[i.get('pos\_\_auth\_\_group\_\_ti__title')\]={}
+
+                    menu\_dic\[i.get('pos\_\_auth\_\_group\_\_ti\_\_title')\]\['title'\]=i.get('pos\_\_auth\_\_group\_\_ti__title')
+
+                    if not i.get('pos\_\_auth\_\_to\_display\_\_name'):
+
+                        menu\_dic\[i.get('pos\_\_auth\_\_group\_\_ti\_\_title')\]\['lower'\]=\[menu\_auth_dic,\]
+
+                    else:
+
+                        menu\_dic\[i.get('pos\_\_auth\_\_group\_\_ti__title')\]\['lower'\] = \[\]
+
+                # print(i.get('pos\_\_auth\_\_name'),
+
+                #       i.get('pos\_\_auth\_\_url'),
+
+                #       i.get('pos\_\_auth\_\_to\_display\_\_url'),
+
+                #       i.get('pos\_\_auth\_\_to\_display\_\_name'),
+
+                #       i.get('pos\_\_auth\_\_group__name'),
+
+                #       i.get('pos\_\_auth\_\_group\_\_ti\_\_title'),
+
+                #       )
+
+            print('菜单-->',menu_dic)
+
+            #权限
+
+            auth_dic={}
+
+            for i in obj:
+
+                if i.get('pos\_\_auth\_\_group\_\_name') in auth\_dic.keys():
+
+                    auth\_dic\[i.get('pos\_\_auth\_\_group\_\_name')\]\['url'\].append(i.get('pos\_\_auth\_\_url'))
+
+                else:
+
+                    auth\_dic\[i.get('pos\_\_auth\_\_group\_\_name')\] = {'url':\[i.get('pos\_\_auth\_\_url'),\],}
+
+            print('权限-->',auth_dic)
+
+        else:
+
+            #用户名密码 错误
+
+            error='password  is  error'
+
+            return render(request, 'login.html', locals())
+
+    return HttpResponse('登录成功')
+
+左侧菜单的权限应用 demo
+login_auth.py
+
+代码
+
+from django.shortcuts import render,HttpResponse
+
+def menu\_auth(user\_obj,request):
+
+    obj = user\_obj.values('pos\_\_auth__url',
+
+                          'pos\_\_auth\_\_name',
+
+                          'pos\_\_auth\_\_to\_display\_\_url',
+
+                          'pos\_\_auth\_\_to\_display\_\_name',
+
+                          'pos\_\_auth\_\_group__name',
+
+                          'pos\_\_auth\_\_group\_\_ti\_\_title',
+
+                          )  # --\> \[{},{},{}\]
+
+    # 菜单
+
+    menu_dic = {}
+
+    for i in obj:
+
+        menu\_auth\_dic = {
+
+            'url': i.get('pos\_\_auth\_\_url'),
+
+            'name': i.get('pos\_\_auth\_\_name'),
+
+            'display\_url': i.get('pos\_\_auth\_\_to\_display__url'),
+
+            'display\_name': i.get('pos\_\_auth\_\_to\_display__name'),
+
+        }
+
+        if i.get('pos\_\_auth\_\_group\_\_ti\_\_title') in menu_dic.keys():
+
+            if not i.get('pos\_\_auth\_\_to\_display\_\_name'):
+
+                menu\_dic\[i.get('pos\_\_auth\_\_group\_\_ti\_\_title')\]\['lower'\].append(menu\_auth_dic)
+
+        else:
+
+            menu\_dic\[i.get('pos\_\_auth\_\_group\_\_ti__title')\] = {}
+
+            menu\_dic\[i.get('pos\_\_auth\_\_group\_\_ti\_\_title')\]\['title'\] = i.get('pos\_\_auth\_\_group\_\_ti__title')
+
+            if not i.get('pos\_\_auth\_\_to\_display\_\_name'):
+
+                menu\_dic\[i.get('pos\_\_auth\_\_group\_\_ti\_\_title')\]\['lower'\] = \[menu\_auth_dic, \]
+
+            else:
+
+                menu\_dic\[i.get('pos\_\_auth\_\_group\_\_ti__title')\]\['lower'\] = \[\]
+
+                # print(i.get('pos\_\_auth\_\_name'),
+
+                #       i.get('pos\_\_auth\_\_url'),
+
+                #       i.get('pos\_\_auth\_\_to\_display\_\_url'),
+
+                #       i.get('pos\_\_auth\_\_to\_display\_\_name'),
+
+                #       i.get('pos\_\_auth\_\_group__name'),
+
+                #       i.get('pos\_\_auth\_\_group\_\_ti\_\_title'),
+
+                #       )
+
+    request.session\['menu\_dic'\]=menu\_dic
+
+    # 权限
+
+    auth_dic = {}
+
+    for i in obj:
+
+        if i.get('pos\_\_auth\_\_group\_\_name') in auth\_dic.keys():
+
+            auth\_dic\[i.get('pos\_\_auth\_\_group\_\_name')\]\['url'\].append(i.get('pos\_\_auth\_\_url'))
+
+        else:
+
+            auth\_dic\[i.get('pos\_\_auth\_\_group\_\_name')\] = {'url': \[i.get('pos\_\_auth\_\_url'), \], }
+
+    request.session\['auth\_dic'\]=auth\_dic
+index.html
+
+代码
+
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <title>Title</title>
+
+</head>
+
+<body>
+
+<div id="index">
+
+    {% for item in menu_dic.values %}
+
+        <h2>{{ item.title }}</h2>
+
+        {% for i in item.lower %}
+
+            <div>
+
+                <a href="{{ i.url }}">{{ i.name }}</a>
+
+            </div>
+
+        {% endfor %}
+
+    {% endfor %}
+
+</div>
+
+</body>
+
+</html>
+auth_server/middleware/cmdb_auth.py
+
+代码
+
+import re
+
+from django.shortcuts import redirect,HttpResponse,render
+
+class MiddlewareMixin(object):
+
+    def \_\_init\_\_(self, get_response=None):
+
+        self.get\_response = get\_response
+
+        super(MiddlewareMixin, self).\_\_init\_\_()
+
+    def \_\_call\_\_(self, request):
+
+        response = None
+
+        if hasattr(self, 'process_request'):
+
+            response = self.process_request(request)
+
+        if not response:
+
+            response = self.get_response(request)
+
+        if hasattr(self, 'process_response'):
+
+            response = self.process_response(request, response)
+
+        return response
+
+VALID_LIST=\['/auth/demo/','/admin/*',\]        #白名单
+
+class AuthMiddleware(MiddlewareMixin):
+
+    def process_request(self,request):
+
+        # 1\. 获取当前请求的URL
+
+        # request.path_info
+
+        # 2\. 获取Session中保存当前用户的权限
+
+        current\_url = request.path\_info
+
+        # 白名单
+
+        for url in VALID_LIST:
+
+            if re.match(url,current_url):
+
+                return None
+
+        auth\_dic = request.session.get('auth\_dic','')
+
+        #未登录用户
+
+        if not auth_dic:
+
+            return redirect('/auth/demo/')
+
+        flag = False
+
+        for group\_name,auth\_url in auth_dic.items():
+
+            for url in auth_url\['url'\]:
+
+                regax = "^{0}$".format(url)
+
+                if re.match(regax, current_url):
+
+                    # 获取当前用户对当前组内的所有code，并赋值给request
+
+                    # request.permission\_code\_list = code_url\['codes'\]
+
+                    request.permission\_code\_list = auth_url\['url'\]
+
+                    flag = True
+
+                    break
+
+            if flag:
+
+                break
+
+        if not flag:
+
+            return HttpResponse('无此权限')
+
+            # return render(request,'errors.html')
+demo01.py
+
+代码
+
+import json
+
+from django.shortcuts import render,HttpResponse,redirect
+
+from django.views import View
+
+from cmdb_client.func.scripts import start
+
+def client_run(request):
+
+    if request.method =='GET':
+
+        ret=start()
+
+        print(ret)
+
+        return HttpResponse(ret)
+
+def client_api(request):
+
+    if request.method =='POST':
+
+        print(request.POST)
+
+        print(request.body)
+
+        return HttpResponse('ok')
+
+def index(request):
+
+    menu\_dic=request.session.get('menu\_dic')
+
+    return render(request, 'index.html', {'menu\_dic':menu\_dic})
