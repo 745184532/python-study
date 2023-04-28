@@ -1,0 +1,455 @@
+代码整理及总结
+针对页面增加权限的判断
+bootstrap 第一步，找模板和找元素
+代码整理及总结
+index.html
+https://my.oschina.net/u/3959701/blog/3097700
+代码
+
+div id="index">
+
+    {% for item in menu_dic.values %}
+
+        <h2>{{ item.title }}</h2>
+
+        {% for i in item.lower %}
+
+            <div>
+
+                <a href="{{ i.url }}">{{ i.name }}</a>
+
+            </div>
+
+        {% endfor %}
+
+    {% endfor %}
+
+</div>
+
+<div>
+
+    {% block content %}
+
+    {% endblock %}
+
+</div>
+
+</body>
+
+</html
+
+
+cmdb_auth.py
+
+代码
+
+import re
+
+from django.shortcuts import redirect,HttpResponse,render
+
+from django.conf import settings
+
+class MiddlewareMixin(object):
+
+    def \_\_init\_\_(self, get_response=None):
+
+        self.get\_response = get\_response
+
+        super(MiddlewareMixin, self).\_\_init\_\_()
+
+    def \_\_call\_\_(self, request):
+
+        response = None
+
+        if hasattr(self, 'process_request'):
+
+            response = self.process_request(request)
+
+        if not response:
+
+            response = self.get_response(request)
+
+        if hasattr(self, 'process_response'):
+
+            response = self.process_response(request, response)
+
+        return response
+
+class AuthMiddleware(MiddlewareMixin):
+
+    def process_request(self,request):
+
+        # 1\. 获取当前请求的URL
+
+        # request.path_info
+
+        # 2\. 获取Session中保存当前用户的权限
+
+        current\_url = request.path\_info
+
+        # 白名单
+
+        for url in settings.VALID_LIST:
+
+            if re.match(url,current_url):
+
+                return None
+
+        auth\_dic = request.session.get(settings.AUTH\_DIC,'')
+
+        #未登录用户
+
+        if not auth_dic:
+
+            return redirect('/auth/demo/')
+
+        flag = False
+
+        for group\_name,auth\_url in auth_dic.items():
+
+            for url in auth_url\['url'\]:
+
+                regax = "^{0}$".format(url)
+
+                if re.match(regax, current_url):
+
+                    # 获取当前用户对当前组内的所有code，并赋值给request
+
+                    # request.permission\_code\_list = code_url\['codes'\]
+
+                    request.permission\_code\_list = auth_url\['url'\]
+
+                    flag = True
+
+                    break
+
+            if flag:
+
+                break
+
+        if not flag:
+
+            return HttpResponse('无此权限')
+
+            # return render(request,'errors.html')
+
+
+settings.py
+
+添加代码
+
+ROOT_URLCONF = 'cmdb.urls'
+
+VALID_LIST=\['/auth/demo/','/admin/*','/logout/'\]
+
+AUTH_DIC='auth xieyidiandic'
+
+MENU\_DIC='menudafdsf\_dic'
+
+
+untlis/login_auth.py
+
+代码
+
+from django.shortcuts import render,HttpResponse
+
+from django.conf import settings
+
+def menu\_auth(user\_obj,request):
+
+    obj = user\_obj.values('pos\_\_auth__url',
+
+                          'pos\_\_auth\_\_name',
+
+                          'pos\_\_auth\_\_to\_display\_\_url',
+
+                          'pos\_\_auth\_\_to\_display\_\_name',
+
+                          'pos\_\_auth\_\_group__name',
+
+                          'pos\_\_auth\_\_group\_\_ti\_\_title',
+
+                          )  # --\> \[{},{},{}\]
+
+    # 菜单
+
+    menu_dic = {}
+
+    for i in obj:
+
+        menu\_auth\_dic = {
+
+            'url': i.get('pos\_\_auth\_\_url'),
+
+            'name': i.get('pos\_\_auth\_\_name'),
+
+            'display\_url': i.get('pos\_\_auth\_\_to\_display__url'),
+
+            'display\_name': i.get('pos\_\_auth\_\_to\_display__name'),
+
+        }
+
+        if i.get('pos\_\_auth\_\_group\_\_ti\_\_title') in menu_dic.keys():
+
+            if not i.get('pos\_\_auth\_\_to\_display\_\_name'):
+
+                menu\_dic\[i.get('pos\_\_auth\_\_group\_\_ti\_\_title')\]\['lower'\].append(menu\_auth_dic)
+
+        else:
+
+            menu\_dic\[i.get('pos\_\_auth\_\_group\_\_ti__title')\] = {}
+
+            menu\_dic\[i.get('pos\_\_auth\_\_group\_\_ti\_\_title')\]\['title'\] = i.get('pos\_\_auth\_\_group\_\_ti__title')
+
+            if not i.get('pos\_\_auth\_\_to\_display\_\_name'):
+
+                menu\_dic\[i.get('pos\_\_auth\_\_group\_\_ti\_\_title')\]\['lower'\] = \[menu\_auth_dic, \]
+
+            else:
+
+                menu\_dic\[i.get('pos\_\_auth\_\_group\_\_ti__title')\]\['lower'\] = \[\]
+
+                # print(i.get('pos\_\_auth\_\_name'),
+
+                #       i.get('pos\_\_auth\_\_url'),
+
+                #       i.get('pos\_\_auth\_\_to\_display\_\_url'),
+
+                #       i.get('pos\_\_auth\_\_to\_display\_\_name'),
+
+                #       i.get('pos\_\_auth\_\_group__name'),
+
+                #       i.get('pos\_\_auth\_\_group\_\_ti\_\_title'),
+
+                #       )
+
+    request.session\[settings.MENU\_DIC\]=menu\_dic
+
+    print(menu_dic)
+
+    # 权限
+
+    auth_dic = {}
+
+    for i in obj:
+
+        if i.get('pos\_\_auth\_\_group\_\_name') in auth\_dic.keys():
+
+            auth\_dic\[i.get('pos\_\_auth\_\_group\_\_name')\]\['url'\].append(i.get('pos\_\_auth\_\_url'))
+
+        else:
+
+            auth\_dic\[i.get('pos\_\_auth\_\_group\_\_name')\] = {'url': \[i.get('pos\_\_auth\_\_url'), \], }
+
+    request.session\[settings.AUTH\_DIC\]=auth\_dic
+
+
+针对页面增加权限的判断
+cmdb_auth.py
+
+代码
+
+import re
+
+from django.shortcuts import redirect,HttpResponse,render
+
+from django.conf import settings
+
+class MiddlewareMixin(object):
+
+    def \_\_init\_\_(self, get_response=None):
+
+        self.get\_response = get\_response
+
+        super(MiddlewareMixin, self).\_\_init\_\_()
+
+    def \_\_call\_\_(self, request):
+
+        response = None
+
+        if hasattr(self, 'process_request'):
+
+            response = self.process_request(request)
+
+        if not response:
+
+            response = self.get_response(request)
+
+        if hasattr(self, 'process_response'):
+
+            response = self.process_response(request, response)
+
+        return response
+
+class AuthMiddleware(MiddlewareMixin):
+
+    def process_request(self,request):
+
+        # 1\. 获取当前请求的URL
+
+        # request.path_info
+
+        # 2\. 获取Session中保存当前用户的权限
+
+        current\_url = request.path\_info
+
+        # 白名单
+
+        for url in settings.VALID_LIST:
+
+            if re.match(url,current_url):
+
+                return None
+
+        auth\_dic = request.session.get(settings.AUTH\_DIC,'')
+
+        #未登录用户
+
+        if not auth_dic:
+
+            return redirect('/auth/demo/')
+
+        flag = False
+
+        for group\_name,auth\_url in auth_dic.items():
+
+            for url in auth_url\['url'\]:
+
+                regax = "^{0}$".format(url)
+
+                if re.match(regax, current_url):
+
+                    # 获取当前用户对当前组内的所有code，并赋值给request
+
+                    # request.permission\_code\_list = code_url\['codes'\]
+
+                    request.permission\_code\_list = auth_url\['url'\]
+
+                    flag = True
+
+                    break
+
+            if flag:
+
+                break
+
+        if not flag:
+
+            return HttpResponse('无此权限')
+
+            # return render(request,'errors.html')
+
+host.html
+
+代码
+
+{% extends "index.html" %}
+
+{% block content %}
+
+    {% if '/host/add' in request.permission\_code\_list %}
+
+    <div>
+
+       <a href="/host/add">添加</a>
+
+    </div>
+
+    {% endif %}
+
+    <div class="container">
+
+        <table class="table table-bordered table-hover" id="table">
+
+                <thead>
+
+                    <tr>
+
+                        <th>  </th>
+
+                        <th> 主机名 </th>
+
+                        <th> CPU </th>
+
+                        <th> 内存/G </th>
+
+                        <th> 带宽/M </th>
+
+                        <th> IP </th>
+
+                        <th> 来源类型 </th>
+
+                        <th> 所属区域 </th>
+
+                        <th> 状态 </th>
+
+                        {% if '/host/(\\d+)/update' in request.permission\_code\_list %}
+
+                            <th> 编辑 </th>
+
+                        {% endif %}
+
+                        <th> 删除 </th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    {% for host in host_list %}
+
+                        <tr>
+
+                                <td>{{ host.id }}</td>
+
+                                <td>{{ host.hostname }}</td>
+
+                                <td>{{ host.cpu }}</td>
+
+                                <td>{{ host.mem }}</td>
+
+                                <td>{{ host.speed }}</td>
+
+                                <td>{{ host.network }}</td>
+
+                                <td>{{ host.source }}</td>
+
+                                <td>{{ host.region }}</td>
+
+                                <td>{{ host.get\_state\_display }}</td>
+
+                                {% if '/host/(\\d+)/update' in request.permission\_code\_list %}
+
+                                    <td><a href="/host/edit/{{ host.id }}/">编辑</a></td>
+
+                                {% endif %}
+
+    {#                            <td><a href="/host/edit?id={{ host.id }}">编辑</a></td>#}
+
+                                <td><a href="/host/del?id={{ host.id }}">删除</a></td>
+
+                        </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+    </div>
+
+{% endblock %}
+
+bootstrap 第一步，找模板和找元素
+百度 bootsratp 模板
+
+建议有图，柱状，饼状图
+
+
+
+google chrome 检查 ，查找元素
+
+
+
+通过 id 查看需要的代码段
