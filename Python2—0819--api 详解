@@ -1,0 +1,173 @@
+Python2—0819 笔记
+原创
+Jerry1101
+学习笔记
+2019/08/20 09:25
+阅读数 88
+
+api 详解
+基于阿里云实现 webssh 详解
+api 详解
+demo3.py
+
+代码
+
+#!/usr/bin/env python
+
+#coding=utf-8
+
+import json
+
+from aliyunsdkcore.client import AcsClient
+
+from aliyunsdkcore.request import CommonRequest
+
+client = AcsClient('LTAIuUZ04rkXlfNr', 'n4hFY1DfCslEP5rWH2YlWuqtuwmrFS', 'cn-zhangjiakou')
+
+request = CommonRequest()
+
+request.set\_accept\_format('json')
+
+request.set_domain('ecs.cn-zhangjiakou.aliyuncs.com')
+
+request.set_method('POST')
+
+request.set_version('2014-05-26')
+
+request.set\_action\_name('DescribeInstances')
+
+request.add\_query\_param('RegionId', 'cn-zhangjiakou')
+
+request.add\_query\_param('PageSize', '10')
+
+request.add\_query\_param('PageNumber', '1')
+
+response = client.do\_action\_with_exception(request)
+
+\# python2:  print(response)
+
+ret=json.loads(response.decode('utf-8'))                          # decode 转化字节成字符串 
+
+\# print(str(response, encoding = 'utf-8'))
+
+ret_id=ret.get('RequestId')
+
+ret_data=ret.get('Instances').get('Instance')                   # 没有key不会报错
+
+JG_dic={}
+
+for item in ret_data:
+
+    # print('内存',item.get('Memory'))
+
+    # print('hostname',item.get('HostName'))
+
+    # print('instanceName',item.get('InstanceName'))
+
+    #
+
+    # print('InstanceId',item.get('InstanceId'))
+
+    # print('带宽',item.get('InternetMaxBandwidthIn'))
+
+    # print('SN号',item.get('SerialNumber'))
+
+    NT=item.get('NetworkInterfaces').get('NetworkInterface')
+
+    for i in NT:
+
+        print(i.get('MacAddress'),i.get('PrimaryIpAddress'))
+
+    JG_dic\[item.get('InstanceId')\]={'InstanceId':item.get('InstanceId')}
+
+    JG_dic\[item.get('InstanceId')\]\['mem'\]=item.get('Memory')
+
+    JG_dic\[item.get('InstanceId')\]\['InstanceName'\]=item.get('InstanceName')
+
+print(JG_dic)
+
+'''
+
+ret_id=ret.get('RequestId')
+
+for item in ret.get('Instances').get('Instance'):
+
+    host_sn=item.get('SerialNumber')            #SN
+
+    host\_in\_network=item.get('InternetMaxBandwidthIn')      #入网IP
+
+    host\_create\_time=item.get('CreationTime')
+
+    host\_in\_Name=item.get('InstanceName')
+
+    host\_start\_time=item.get('StartTime')
+
+    host\_out\_network=item.get('InternetMaxBandwidthOut')
+
+print(ret_id)
+
+
+基于阿里云实现 webssh 详解
+cipan_demo1.py
+
+#!/usr/bin/python
+
+\# -*- coding:utf-8 -*-
+
+#make in LA
+
+from aliyunsdkcore.client import AcsClient
+
+from aliyunsdkcore.request import CommonRequest
+
+client = AcsClient('LTAIuUZ04rkXlfNr', 'n4hFY1DfCslEP5rWH2YlWuqtuwmrFS', 'cn-zhangjiakou')
+
+request = CommonRequest()
+
+request.set\_accept\_format('json')
+
+request.set_domain('ecs.cn-zhangjiakou.aliyuncs.com')
+
+request.set_method('POST')
+
+request.set_version('2014-05-26')
+
+request.set\_action\_name('DescribeDisks')
+
+request.add\_query\_param('RegionId', 'cn-zhangjiakou')
+
+response = client.do\_action\_with_exception(request)
+
+\# python2:  print(response)
+
+print(str(response, encoding = 'utf-8'))
+
+阿里云认为磁盘是单独挂载的  DescribeInstanceStatus 无法获取磁盘信息
+
+需要使用DescribeDisks 来查看磁盘信息
+
+代码
+
+#!/usr/bin/env python
+
+#coding=utf-8
+
+from aliyunsdkcore.client import AcsClient
+
+from aliyunsdkcore.acs_exception.exceptions import ClientException
+
+from aliyunsdkcore.acs_exception.exceptions import ServerException
+
+from aliyunsdkecs.request.v20140526.DescribeDisksRequest import DescribeDisksRequest
+
+client = AcsClient('<accessKeyId>', '<accessSecret>', 'cn-hangzhou')
+
+request = DescribeDisksRequest()
+
+request.set\_accept\_format('json')
+
+response = client.do\_action\_with_exception(request)
+
+\# python2:  print(response)
+
+print(str(response, encoding='utf-8'))
