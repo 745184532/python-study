@@ -1,0 +1,226 @@
+登录 demo
+登录后数据需求分析
+菜单显示需求及思路补充
+登录 demo
+auth_server/views.py
+
+代码
+
+from django.shortcuts import render,HttpResponse
+
+from demo01 import models
+
+from utlis import login_auth
+
+def auth_demo(request):
+
+    if request.method == 'GET':
+
+        return render(request,'login.html',locals())
+
+    else:
+
+        username=request.POST.get('username','')
+
+        password=request.POST.get('password','')
+
+        user_obj=models.UserInfo.objects.filter(name=username,password=password)  #querysetList  \[queryset,\]
+
+        # user_obj=models.UserInfo.objects.filter(name=username,password=password).first()  #queryset
+
+        if user_obj.first():
+
+            #用户名  密码 输入正确
+
+            # login\_auth.menu\_auth(user_obj)
+
+            # for item in user_obj.pos.auth.all():
+
+            #     print(item.url,item.name)
+
+            obj=user\_obj.values('pos\_\_auth__url',
+
+                            'pos\_\_auth\_\_name',
+
+                            'pos\_\_auth\_\_to\_display\_\_url',
+
+                            'pos\_\_auth\_\_to\_display\_\_name',
+
+                            'pos\_\_auth\_\_group__name',
+
+                            'pos\_\_auth\_\_group\_\_ti\_\_title',
+
+                            )   #--\> \[{},{},{}\]
+
+            #菜单
+
+            menu_dic={}
+
+            for i in obj:
+
+                menu\_auth\_dic={
+
+                    'url':i.get('pos\_\_auth\_\_url'),
+
+                    'name':i.get('pos\_\_auth\_\_name'),
+
+                    'display\_url':i.get('pos\_\_auth\_\_to\_display__url'),
+
+                    'display\_name':i.get('pos\_\_auth\_\_to\_display__name'),
+
+                }
+
+                if i.get('pos\_\_auth\_\_group\_\_ti\_\_title') in menu_dic.keys():
+
+                    if not i.get('pos\_\_auth\_\_to\_display\_\_name'):
+
+                        menu\_dic\[i.get('pos\_\_auth\_\_group\_\_ti\_\_title')\]\['lower'\].append(menu\_auth_dic)
+
+                else:
+
+                    menu\_dic\[i.get('pos\_\_auth\_\_group\_\_ti__title')\]={}
+
+                    menu\_dic\[i.get('pos\_\_auth\_\_group\_\_ti\_\_title')\]\['title'\]=i.get('pos\_\_auth\_\_group\_\_ti__title')
+
+                    if not i.get('pos\_\_auth\_\_to\_display\_\_name'):
+
+                        menu\_dic\[i.get('pos\_\_auth\_\_group\_\_ti\_\_title')\]\['lower'\]=\[menu\_auth_dic,\]
+
+                    else:
+
+                        menu\_dic\[i.get('pos\_\_auth\_\_group\_\_ti__title')\]\['lower'\] = \[\]
+
+                # print(i.get('pos\_\_auth\_\_name'),
+
+                #       i.get('pos\_\_auth\_\_url'),
+
+                #       i.get('pos\_\_auth\_\_to\_display\_\_url'),
+
+                #       i.get('pos\_\_auth\_\_to\_display\_\_name'),
+
+                #       i.get('pos\_\_auth\_\_group__name'),
+
+                #       i.get('pos\_\_auth\_\_group\_\_ti\_\_title'),
+
+                #       )
+
+            print('菜单-->',menu_dic)
+
+            #权限
+
+            auth_dic={}
+
+            for i in obj:
+
+                if i.get('pos\_\_auth\_\_group\_\_name') in auth\_dic.keys():
+
+                    auth\_dic\[i.get('pos\_\_auth\_\_group\_\_name')\]\['url'\].append(i.get('pos\_\_auth\_\_url'))
+
+                else:
+
+                    auth\_dic\[i.get('pos\_\_auth\_\_group\_\_name')\] = {'url':\[i.get('pos\_\_auth\_\_url'),\],}
+
+            print('权限-->',auth_dic)
+
+        else:
+
+            #用户名密码 错误
+
+            error='password  is  error'
+
+            return render(request, 'login.html', locals())
+
+    return HttpResponse('登录成功')
+
+
+登录后数据需求分析
+登录 demo：
+
+数据的应用场景：
+
+url：
+
+—> 菜单的跳转地址 /auth/authgroup/add.html
+
+—> 验证用户有没有该地址的访问权限
+
+权限
+
+权限表
+
+查看权限
+
+查看权限组 /auth/authgroup/list.html 权限组表 权限 — 按钮 —> 删除，编辑，添加
+
+查看岗位
+
+菜单表
+
+查看菜单 /auth/meun/list.html 菜单表 权限  — 按钮 —> 删除，编辑，添加
+
+查看员工
+
+login.html
+
+代码
+
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <title>Title</title>
+
+</head>
+
+<body>
+
+    <div id="app">
+
+        <form method="post">
+
+            {% csrf_token %}
+
+            用户名:<input type="text" name="username">
+
+            密 码:<input type="text" name="password">
+
+            {{ error }}
+
+            <input type="submit" value="提交">
+
+        </form>
+
+    </div>
+
+</body>
+
+</html>
+
+菜单显示需求及思路补充
+菜单选中时候变色，高亮
+
+Demo01/models.py
+
+代码
+
+class Auth(models.Model):
+
+    url = models.CharField(max\_length=64, blank=True, null=True, verbose\_name='路径')
+
+    name = models.CharField(max\_length=16, blank=True, null=True, verbose\_name='显示')
+
+    group = models.ForeignKey(to='AuthGroup',blank=True, null=True,verbose\_name='组',related\_name='augro')
+
+    to\_display = models.ForeignKey(to='Auth',blank=True, null=True,verbose\_name='显示',related_name='authauth')
+
+    def \_\_str\_\_(self):
+
+        return self.name
+
+    class Meta:
+
+        verbose\_name\_plural = "权限表"
