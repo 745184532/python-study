@@ -1,30 +1,637 @@
-﻿
-Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.28010.2050
-MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "v2rayN", "v2rayN\v2rayN.csproj", "{0A9785E6-D256-4B73-9757-4EF59955FD1E}"
-EndProject
-Global
-	GlobalSection(SolutionConfigurationPlatforms) = preSolution
-		Debug|Any CPU = Debug|Any CPU
-		Debug|x86 = Debug|x86
-		Release|Any CPU = Release|Any CPU
-		Release|x86 = Release|x86
-	EndGlobalSection
-	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{0A9785E6-D256-4B73-9757-4EF59955FD1E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{0A9785E6-D256-4B73-9757-4EF59955FD1E}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{0A9785E6-D256-4B73-9757-4EF59955FD1E}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{0A9785E6-D256-4B73-9757-4EF59955FD1E}.Debug|x86.Build.0 = Debug|Any CPU
-		{0A9785E6-D256-4B73-9757-4EF59955FD1E}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{0A9785E6-D256-4B73-9757-4EF59955FD1E}.Release|Any CPU.Build.0 = Release|Any CPU
-		{0A9785E6-D256-4B73-9757-4EF59955FD1E}.Release|x86.ActiveCfg = Release|Any CPU
-	EndGlobalSection
-	GlobalSection(SolutionProperties) = preSolution
-		HideSolutionNode = FALSE
-	EndGlobalSection
-	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {56B88873-C9CC-4069-A1E5-DABD6C6E865E}
-	EndGlobalSection
-EndGlobal
+Python2—0815 笔记
+
+客户端 demo2 演示
+demo 总结及作业
+demo3 代码流程
+客户端 demo2 演示
+demo02/run.py
+
+代码
+
+#!/usr/bin/env python
+
+\# _\*_ coding:utf-8 _\*_
+
+import importlib
+
+import os,sys
+
+\# sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(\_\_file\_\_))))
+
+BASEDIR = os.path.dirname(os.path.dirname(os.path.abspath(\_\_file\_\_)))
+
+sys.path.append(BASEDIR)
+
+from conf.settings import HOST\_FUNC\_DIC
+
+from conf.settings import HOST\_FUNC\_LI
+
+from func.task.get\_data import send\_main
+
+#调用salt-api
+
+for host in HOST\_FUNC\_LI:
+
+    path=HOST\_FUNC\_DIC.get(host)
+
+    module\_path,class\_name = path.rsplit('.',maxsplit=1)
+
+    module = importlib.import\_module(module\_path)
+
+    # from func_demo.hosts import disk
+
+    # disk_class=getattr(disk,'Disk')
+
+    disk\_class=getattr(module,class\_name)
+
+    JG=disk_class()
+
+    func=JG.run()
+
+    # print(func)
+
+    JG=send_main(func)
+
+    obj=Send\_demo(JG\_dic)
+
+    ret=obj.send_func()
+
+    print(ret)
+
+
+demo02/func/task/get_data.py
+
+代码
+
+#!/usr/bin/env python
+
+\# _\*_ coding:utf-8 _\*_
+
+import requests
+
+import json
+
+try:
+
+    import cookielib
+
+except:
+
+    import http.cookiejar as cookielib
+
+\# 使用urllib2请求https出错，做的设置
+
+import ssl
+
+context = ssl.\_create\_unverified_context()
+
+from func.task.salt_client import SaltApi
+
+from conf.settings import SALT\_API\_CON
+
+\# 使用requests请求https出现警告，做的设置
+
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+
+def send_main(params):
+
+    # print ('==================')
+
+    # print ('同步执行命令')
+
+    print(params)
+
+    salt = SaltApi(SALT\_API\_CON,params)
+
+    result\_data = salt.salt\_command()
+
+    # salt\_client = 'jenkins\_test'
+
+    # salt_client = \['*'\]
+
+    # salt_test = 'grains.items'
+
+    # salt_test = 'test.ping'
+
+    # salt_method = 'grains.get'
+
+    # salt_method = 'cmd.run'
+
+    # salt_method = 'disk.usage'
+
+    # salt_method = 'svn.update'
+
+    # salt\_params = \['ip\_interfaces', \]
+
+    # salt\_params = \['ip\_interfaces','hwaddr_interfaces'\]
+
+    # salt_params = 'free -m'
+
+    # salt_params = \['free -m',\]
+
+    # salt_params = \['/','/mnt/www','root','liang','liang'\]
+
+    # print salt.salt\_command(salt\_client, salt\_method, salt\_params)
+
+    # 下面只是为了打印结果好看点
+
+    result1 = salt.salt_command()
+
+    # result2 = salt.salt\_command(salt\_client, salt\_method, salt\_params)
+
+    #以内存为demo 处理数据代码
+
+    JG_dic = {}
+
+    for host, value in result_data.items():
+
+        if not value:
+
+            print(host,'内存信息获取失败，请检查dmidecode工具')
+
+            continue
+
+        if host not in JG_dic.keys():
+
+            JG_dic\[host\] = {}
+
+        momeory = 0
+
+        li = value.splict('\\n\\t')
+
+        for item in li:
+
+            if 'Memeory Device' in item:
+
+                continue
+
+            k,v = item.split(':')
+
+            if k == 'Size':
+
+                num,company=v.rsplit(' ',maxsplit=1)
+
+                try:
+
+                    num=int(num)/1024
+
+                except ValueError:
+
+                    continue
+
+                memory += num
+
+        JG_dic\[host\]\['memory'\]=memory
+
+    return JG_dic
+
+    #disk
+
+    # for host,dic in result2.items():
+
+    #     print (host)
+
+    #
+
+    #     for disk,value in dic.items():
+
+    #         font_size=str(round(int(value\['1K-blocks'\]) /1024 /1024,2)) +('G')
+
+    #         print('目录',disk,'磁盘大小',font_size)
+
+if \_\_name\_\_ == '\_\_main\_\_':
+
+    send\_main({'client': 'local', 'fun':  'jenkins\_test', 'tgt': 'test.ping',  })
+
+
+demo02/func/hosts/mem.py
+
+代码
+
+from func.hosts.main import Base
+
+class Mem(Base):         （统一继承一个类Base）
+
+    def run(self):
+
+        self.method='cmd.run'
+
+        self.tgt='linux02'
+
+        #self.arg='free -m'
+
+        self.arg='dmidecode -q -t 17 2>/dev/null'
+
+        return {'client': 'local', 'fun':  self.method, 'tgt': self.tgt, 'arg':self.arg }
+
+#salt 'jenkins_test'  cmd.run 'free -m'
+
+
+demo 总结及作业
+demo02/conf/settings.py
+
+代码
+
+#!/usr/bin/python
+
+\# -*- coding:utf-8 -*-
+
+HOST\_FUNC\_DIC = {
+
+    'disk':'func.hosts.disk.Disk',
+
+    'mem':'func.hosts.mem.Mem',
+
+    'cpu':'func.hosts.cpu.Cpu',
+
+    'os':'func.hosts.os.Os',
+
+    'ip':'func.hosts.ip.Ip',
+
+}
+
+HOST\_FUNC\_LI=\['mem'\]
+
+SALT\_API\_CON = "[https://192.168.78.128:8001/](https://192.168.78.128:8001/)"
+
+SALT_USERNAME = "saltapi"
+
+SALT_PASSWORD = "Freeme123"
+
+demo02/func/hosts/mem.py
+
+代码
+
+from func.hosts.main import Base
+
+class Mem(Base):         （统一继承一个类Base）
+
+    def run(self):
+
+        self.method='cmd.run'
+
+        self.tgt='linux02'
+
+        #self.arg='free -m'
+
+        self.arg='dmidecode -q -t 17 2>/dev/null'
+
+        return {'client': 'local', 'fun':  self.method, 'tgt': self.tgt, 'arg':self.arg }
+
+#salt 'jenkins_test'  cmd.run 'free -m'
+
+demo02/func/task/get_data.py
+
+代码
+
+#!/usr/bin/env python
+
+\# _\*_ coding:utf-8 _\*_
+
+import requests
+
+import json
+
+try:
+
+    import cookielib
+
+except:
+
+    import http.cookiejar as cookielib
+
+\# 使用urllib2请求https出错，做的设置
+
+import ssl
+
+context = ssl.\_create\_unverified_context()
+
+from func.task.salt_client import SaltApi
+
+from conf.settings import SALT\_API\_CON
+
+\# 使用requests请求https出现警告，做的设置
+
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+
+def send_main(params):
+
+    # print ('==================')
+
+    # print ('同步执行命令')
+
+    print(params)
+
+    salt = SaltApi(SALT\_API\_CON,params)
+
+    result\_data = salt.salt\_command()
+
+    # salt\_client = 'jenkins\_test'
+
+    # salt_client = \['*'\]
+
+    # salt_test = 'grains.items'
+
+    # salt_test = 'test.ping'
+
+    # salt_method = 'grains.get'
+
+    # salt_method = 'cmd.run'
+
+    # salt_method = 'disk.usage'
+
+    # salt_method = 'svn.update'
+
+    # salt\_params = \['ip\_interfaces', \]
+
+    # salt\_params = \['ip\_interfaces','hwaddr_interfaces'\]
+
+    # salt_params = 'free -m'
+
+    # salt_params = \['free -m',\]
+
+    # salt_params = \['/','/mnt/www','root','liang','liang'\]
+
+    # print salt.salt\_command(salt\_client, salt\_method, salt\_params)
+
+    # 下面只是为了打印结果好看点
+
+    result1 = salt.salt_command()
+
+    # result2 = salt.salt\_command(salt\_client, salt\_method, salt\_params)
+
+    #以内存为demo 处理数据代码
+
+    JG_dic = {}
+
+    for host, value in result_data.items():
+
+        if not value:
+
+            print(host,'内存信息获取失败，请检查dmidecode工具')
+
+            continue
+
+        if host not in JG_dic.keys():
+
+            JG_dic\[host\] = {}
+
+        momeory = 0
+
+        li = value.splict('\\n\\t')
+
+        for item in li:
+
+            if 'Memeory Device' in item:
+
+                continue
+
+            k,v = item.split(':')
+
+            if k == 'Size':
+
+                num,company=v.rsplit(' ',maxsplit=1)
+
+                try:
+
+                    num=int(num)/1024
+
+                except ValueError:
+
+                    continue
+
+                memory += num
+
+        JG_dic\[host\]\['memory'\]=memory
+
+    return JG_dic
+
+    #disk
+
+    # for host,dic in result2.items():
+
+    #     print (host)
+
+    #
+
+    #     for disk,value in dic.items():
+
+    #         font_size=str(round(int(value\['1K-blocks'\]) /1024 /1024,2)) +('G')
+
+    #         print('目录',disk,'磁盘大小',font_size)
+
+if \_\_name\_\_ == '\_\_main\_\_':
+
+    send\_main({'client': 'local', 'fun':  'jenkins\_test', 'tgt': 'test.ping',  })
+
+demo02/run.py
+
+代码
+
+#!/usr/bin/env python
+
+\# _\*_ coding:utf-8 _\*_
+
+import importlib
+
+import os,sys
+
+\# sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(\_\_file\_\_))))
+
+BASEDIR = os.path.dirname(os.path.dirname(os.path.abspath(\_\_file\_\_)))
+
+sys.path.append(BASEDIR)
+
+from conf.settings import HOST\_FUNC\_DIC
+
+from conf.settings import HOST\_FUNC\_LI
+
+from func.task.get\_data import send\_main
+
+#调用salt-api
+
+for host in HOST\_FUNC\_LI:
+
+    path=HOST\_FUNC\_DIC.get(host)
+
+    module\_path,class\_name = path.rsplit('.',maxsplit=1)
+
+    module = importlib.import\_module(module\_path)
+
+    # from func_demo.hosts import disk
+
+    # disk_class=getattr(disk,'Disk')
+
+    disk\_class=getattr(module,class\_name)
+
+    JG=disk_class()
+
+    func=JG.run()
+
+    # print(func)
+
+    JG=send_main(func)
+
+    obj=Send\_demo(JG\_dic)
+
+    ret=obj.send_func()
+
+    print(ret)
+
+#留坑
+
+#各项命令
+
+#指定多台机器以及执行某些台机器
+
+#通过调用salt-api获取结果 进行格式化，格式化代码
+
+#cpu/disk/ip等 代码完善
+
+#格式化代码套用面向对象方式进行统一处理
+
+demo3 代码流程
+cmdb/urls.py
+
+代码
+
+from django.conf.urls import url,include
+
+from django.contrib import admin
+
+from demo01 import views
+
+urlpatterns = \[
+
+    url(r'^admin/', admin.site.urls),
+
+    url(r'^host/', include('host.urls')),
+
+    url(r'^api/', views.client_api),
+
+    url(r'^client\_run/', views.client\_run),   # 在模板里新增一个按钮<a href='/clinet_run/收集服务器信息'/a>
+
+\]
+demo01/models.py
+
+代码
+
+from django.db import models
+
+class Disk(models.Model):
+
+    '''磁盘'''
+
+    path = models.CharField(max\_length=64, blank=True, null=True, verbose\_name='挂载路径')
+
+    size = models.CharField(max\_length=16, blank=True, null=True, verbose\_name='磁盘大小/G')
+
+    remarks = models.CharField(max\_length=2048, blank=True, null=True, verbose\_name='备注')
+
+    def \_\_str\_\_(self):
+
+        return self.size
+
+    class Meta:
+
+        verbose\_name\_plural = "磁盘表"
+
+class Region(models.Model):
+
+    name = models.CharField(max\_length=64,blank=True,null=True,verbose\_name='区域')
+
+    def \_\_str\_\_(self):
+
+        return self.name
+
+    class Meta:
+
+        verbose\_name\_plural = "区域表"
+
+class Host(models.Model):
+
+    hostname = models.CharField(max\_length=64, blank=True, null=True, verbose\_name='主机名')
+
+    ecsname = models.CharField(max\_length=64, blank=True, null=True, verbose\_name='唯一标识/salt-minion-id')
+
+    logining = models.ManyToManyField(to='Login', blank=True, null=True, verbose_name='授权用户')
+
+    login\_port = models.CharField(max\_length=16, default='22', blank=True, null=True, verbose_name='ssh登录端口')
+
+    cpu = models.CharField(max\_length=8, blank=True, null=True, verbose\_name='CPU')
+
+    mem = models.CharField(max\_length=8, blank=True, null=True, verbose\_name='内存/G')
+
+    speed = models.CharField(max\_length=8, blank=True, default='5', null=True, verbose\_name='带宽/M')
+
+    disks = models.ManyToManyField(to='Disk', blank=True, null=True, verbose_name='磁盘')
+
+    network = models.CharField(max\_length=32, blank=True, null=True, verbose\_name='IP')
+
+    sn = models.CharField(max\_length=64, blank=True, null=True, verbose\_name='sn')
+
+    kernel = models.CharField(max\_length=64, blank=True, null=True, verbose\_name='系统内核')  # 内核+版本号
+
+    source = models.ForeignKey(to='Source', blank=True, null=True, verbose_name='来源类型')
+
+    region = models.ForeignKey(to='Region', blank=True, null=True, verbose_name='所属区域')
+
+    state_choices = (
+
+        (1, 'Running'),
+
+        (2, '下线'),
+
+        (3, '关机'),
+
+        (4, '删除'),
+
+        (5, '故障'),
+
+    )
+
+    state = models.SmallIntegerField(verbose\_name='主机状态', choices=state\_choices, blank=True, null=True, )
+
+    def \_\_str\_\_(self):
+
+        return self.network
+
+    class Meta:
+
+        verbose\_name\_plural = "主机表"
+
+class Login(models.Model):
+
+    '''登录相关'''
+
+    login\_name = models.CharField(max\_length=16, default='root', verbose_name='登录用户名')
+
+    login\_pwd= models.CharField(max\_length=64, blank=True, null=True, verbose_name='登录密码')
+
+    auth=models.CharField(max\_length=8,blank=True, null=True, verbose\_name='具有权限')
+
+    def \_\_str\_\_(self):
+
+        return self.login_name
+
+    class Meta:
+
+        verbose\_name\_plural = "主机用户表"
+
+class Source(models.Model):
+
+    '''来源：阿里云、物理机（某机房等）'''
+
+    name = models.CharField(max\_length=16, blank=True, null=True, verbose\_name='来源')
+
+    def \_\_str\_\_(self):
+
+        return self.name
+
+    class Meta:
+
+        verbose\_name\_plural = "主机来源表"
