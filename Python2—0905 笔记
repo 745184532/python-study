@@ -1,0 +1,1379 @@
+最后一个项目自动发现
+启动项目
+
+        导入对象
+
+        自动发现应用
+
+        拼接 url
+
+water.py
+
+代码
+
+import json
+
+import string
+
+from django.core.exceptions import ValidationError
+
+from django.forms import ModelForm
+
+from django.forms import Form
+
+from django.forms import fields
+
+from django.forms import widgets
+
+from django.db.models import Q
+
+from django.conf import settings
+
+from django.utils.safestring import mark_safe
+
+from django.core.urlresolvers import reverse
+
+from django.conf.urls import url,include
+
+from django.shortcuts import HttpResponse,render,redirect
+
+from water.service import v1
+
+from rbac import models
+
+from utlis import jiami_class
+
+from utlis import time_class
+
+from utlis import arya_func
+
+from utlis import webssh_class
+
+from utlis.log_class import Logger
+
+#主机
+
+class LableConfig(v1.AryaConfig):
+
+    list_display = \['name'\]
+
+    # show_add = True
+
+v1.site.register(models.Lable, LableConfig)
+
+class MemoryConfig(v1.AryaConfig):
+
+    list_display = \['size','width','locator','type'\]
+
+    # show_add = True
+
+v1.site.register(models.Memory, MemoryConfig)
+
+class DiskConfig(v1.AryaConfig):
+
+    list_display = \['path','size',\]
+
+v1.site.register(models.Disk, DiskConfig)
+
+class LoginConfig(v1.AryaConfig):
+
+    def login\_pwd\_base(self,row=None,is_title=None):
+
+        if is_title:
+
+            return '登录密码'
+
+        obj=models.Login.objects.filter(pk=row.id).first()
+
+        ret=jiami\_class.jiami().base\_str\_decrypt(obj.login\_pwd)
+
+        return ret
+
+    list\_display = \['id','login\_name',login\_pwd\_base\]
+
+    def add(self,req):
+
+        '''
+
+        传递self对象
+
+        传递req
+
+        传递 加密解密的 在前段页面中的关键字
+
+        '''
+
+        ret=arya\_func.core\_add(self,req,'login_pwd')
+
+        self.\_log\_in\_db(req, url=self.add\_log_url,
+
+                proj=self.mod, action='add', msg='add' + self.mod)
+
+        return ret
+
+    def change(self,req,nid):
+
+        '''
+
+        传递self对象
+
+        传递req
+
+        传递被修改者id
+
+        传递 加密解密的 在前段页面中的关键字
+
+        '''
+
+        ret=arya\_func.core\_change(self,req,nid,'login_pwd')
+
+        self.\_log\_in\_db(req, url=self.update\_log_url,
+
+                proj=self.mod, action='update', msg='update' + self.mod)
+
+        return ret
+
+v1.site.register(models.Login, LoginConfig)
+
+class OsConfig(v1.AryaConfig):
+
+    list_display = \['name',\]
+
+v1.site.register(models.Os, OsConfig)
+
+class NetworkConfig(v1.AryaConfig):
+
+    list\_display = \['ip\_address','mac_address'\]
+
+\# v1.site.register(models.Network,NetworkConfig)
+
+class HostConfig(v1.AryaConfig):
+
+    show_ali=True
+
+    _monitor = True
+
+    #网页登录ssh开关
+
+    # _webssh = True
+
+    def detail\_view(self,row=None,is\_title=None):
+
+        if is_title:
+
+            return '详情'
+
+        app=self.model\_class.\_meta.app_label
+
+        mod=self.model\_class.\_meta.model_name
+
+        \_str='water:%s\_%s_detail' %(app,mod)
+
+        url=reverse(viewname=_str,args=(row.id,))
+
+        result='<a href="{0}" class="btn btn-info">查看详情</a>'.format(url)
+
+        return mark_safe(result)
+
+    # def gouzi(self):
+
+        #通过 钩子函数 增加可以解析的URL
+
+        # return \[url('^(\\d+)/detail.html/', self.detail, name='%s_%s_detail' % (self.app, self.mod)),\]
+
+    def detail(self,req,nid):
+
+        if req.method=='GET':
+
+            obj = models.Host.objects.filter(pk=nid).first()
+
+        else:
+
+            hostname=req.POST.get('hostname').strip().lstrip('主机名:')
+
+            from client.bin.run import JG_info
+
+            JG\_func = JG\_info.\_begin(no\_all_in=hostname)
+
+            # print(JG_func)
+
+            return HttpResponse(JG_func)
+
+        return render(req, 'detail.html', locals())
+
+    def disk(self,row=None,is_title=None):
+
+        if is_title:
+
+            return '磁盘'
+
+        value\_list=models.Host.objects.filter(pk=row.id).values('disks\_\_size')
+
+        ret_li=\[\]
+
+        for value in value_list:
+
+            ret\_li.append(value\['disks\_\_size'\])
+
+        try:
+
+            ret='+'.join(ret_li)
+
+        except TypeError:
+
+            ret = ''
+
+        return ret
+
+    def get\_model\_form(self):
+
+        if self.model_f:
+
+            return self.model_f
+
+        class Dynamic(ModelForm):
+
+            # def \_\_init\_\_(self, \*args, \*\*kwargs):
+
+            #     super(Dynamic, self).\_\_init\_\_(\*args, \*\*kwargs)
+
+                # print(self.base_fields.values())
+
+                # print(self.base\_fields\['hostname'\].\_\_dict__)
+
+                # print(self.base\_fields\['logining'\].\_\_dict__)
+
+            loginname=fields.CharField(widget=widgets.Textarea(),label='登录用户')
+
+            # #PasswordInput
+
+            loginpwd=fields.CharField(widget=widgets.Textarea(),label='登录密码')
+
+            # eth0\_network=fields.CharField(max\_length=32,error_messages=)
+
+            class Meta:
+
+                model=models.Host
+
+                # fields='\_\_all\_\_'
+
+                # exclude=\['logining'\]
+
+                fields=\['hostname','ecsname','loginname','loginpwd',
+
+                        'loginname','loginpwd','login_port','logining',
+
+                        'cpu','lab','mem','speed','disks',
+
+                        'eth1\_network','eth0\_network','sn','os',
+
+                        'kernel','the_upper','source',
+
+                        'state','remarks','state'
+
+                        \]
+
+                error_messages={
+
+                    'eth0_network':{
+
+                        'required': 'ip不能为空'
+
+                    },
+
+                }
+
+                widgets={
+
+                    'hostname': widgets.TextInput(attrs={'class': 'done'}),
+
+                    'ecsname': widgets.TextInput(attrs={'class': 'done'}),
+
+                    'login_port': widgets.TextInput(attrs={'class': 'done'}),
+
+                    'cpu': widgets.TextInput(attrs={'class': 'done'}),
+
+                    'mem': widgets.TextInput(attrs={'class': 'done', }),
+
+                    'eth1_network': widgets.TextInput(attrs={'class': 'done',}),
+
+                    'eth0_network': widgets.TextInput(attrs={'class': 'done', }),
+
+                    'sn': widgets.TextInput(attrs={'class': 'done',}),
+
+                    'speed': widgets.TextInput(attrs={'class': 'done', }),
+
+                    'kernel': widgets.TextInput(attrs={'class': 'done', }),
+
+                    'remarks': widgets.Textarea(attrs={'class': 'done', }),
+
+                    'createtime': widgets.TextInput(attrs={'class': 'done', }),
+
+                    'disks': widgets.SelectMultiple(attrs={'class': 'done', }),
+
+                    'os': widgets.Select(attrs={'class': 'done', }),
+
+                    'state': widgets.Select(attrs={'class': 'done',}),
+
+                    # 'logining':widgets.SelectMultiple(attrs={'class':'displaynone'}) ,
+
+                }
+
+                # def \_\_init\_\_(self,\*args,\*\*kwargs):
+
+                #     super(Dynamic, self).\_\_init\_\_(\*args,\*\*kwargs)
+
+                #     self.base_fields\['logining'\].widget.attr.update({'display':'none'})
+
+            def clean(self):
+
+                login_li=\[\]
+
+                user\_li=self.cleaned\_data\['loginname'\].strip().split('\\r\\n')
+
+                pwd\_li=self.cleaned\_data\['loginpwd'\].strip().split('\\r\\n')
+
+                if len(user\_li) != len(pwd\_li):
+
+                    self.add_error('loginname',ValidationError('用户名密码数量不一致'))
+
+                    return self.cleaned_data
+
+                for line in range(len(user_li)):
+
+                    jiami\_pwd = jiami\_class.jiami().base\_str\_encrypt(pwd_li\[line\])
+
+                    login\_obj=models.Login.objects.filter(login\_name=user\_li\[line\],login\_pwd=jiami_pwd).first()
+
+                    if not login_obj:
+
+                        login\_obj=models.Login.objects.create(login\_name=user\_li\[line\], login\_pwd=jiami_pwd)
+
+                    login\_li.append(login\_obj.id)
+
+                self.cleaned\_data\['logining'\]=login\_li
+
+                return self.cleaned_data
+
+        return Dynamic
+
+    def list(self,request):
+
+        self.request=request
+
+        search_q=request.GET.get('q')
+
+        candition_q=Q()
+
+        search\_list=self.aget.get\_search_list()
+
+        if search\_list and search\_q:
+
+            for search\_item in search\_list:
+
+                temp_q=Q()
+
+                temp\_q.children.append((search\_item,search_q))
+
+                candition\_q.add(temp\_q,'OR')
+
+        pteam\_obj=request.session.get(settings.PTEAM\_OBJ)
+
+        if pteam_obj != 1:
+
+            host\_list=request.session.get(settings.PERMISSION\_HOST)\['host'\]
+
+            queryset=models.Host.objects.filter(candition\_q,pk\_\_in=host\_list).order\_by('-id')
+
+        else:
+
+            queryset=models.Host.objects.filter(candition\_q).order\_by('-id')
+
+        data=v1.ChangeList(self, queryset)
+
+        self.\_log\_in\_db(request, url=self.list\_log_url, proj=self.mod,
+
+                    action='list', msg='list' + self.mod)
+
+        return render(request,'list.html',{'data':data,'req':request})
+
+    def change(self,req,nid):
+
+        log_dic={'user':None,'pwd':None,'hero':None}
+
+        logger=Logger(loglevel=1, logger="fox",num=1).getlog()
+
+        dynamic\_form = self.get\_model_form()
+
+        obj=self.model_class.objects.filter(id=nid).first()
+
+        if req.method=='GET':
+
+            form = dynamic_form(instance=obj)
+
+            login\_name\_li=\[\]
+
+            login\_pwd\_li=\[\]
+
+            #剔除loginning中的多对多显示
+
+            form.fields.pop('logining')
+
+            ##拿出loginning中的多对多数据
+
+            logining=form.initial.pop('logining')
+
+            for login_item in logining:
+
+                base\_str=jiami\_class.jiami().base\_str\_decrypt(login\_item.login\_pwd)
+
+                login\_name\_li.append(login\_item.login\_name)
+
+                login\_pwd\_li.append(base_str)
+
+            #通过换行拼接
+
+            \_loginname='\\r\\n'.join(login\_name_li)
+
+            \_loginpwd='\\r\\n'.join(login\_pwd_li)
+
+            form.initial\['loginname'\]=_loginname
+
+            form.initial\['loginpwd'\]=_loginpwd
+
+            log\_dic\['user'\]='\\t'.join(login\_name_li)
+
+            log\_dic\['pwd'\]='\\t'.join(login\_pwd_li)
+
+            logger.info('%s,%s' %(log\_dic\['user'\],log\_dic\['pwd'\]))
+
+            return render(req,'edit.html',{'data':form,'req':req,'tag':True})
+
+        else:
+
+            form = dynamic_form(instance=obj,data=req.POST)
+
+            if form.is_valid():
+
+                form.save()
+
+                log_dic\['hero'\]=req.session.get(settings.USER)
+
+                logger.info('------------The above is %s modification',log_dic\['hero'\])
+
+                self.\_log\_in\_db(req, url=self.update\_log_url,
+
+                            proj=self.mod, action='update', msg='update' + self.mod)
+
+                return redirect(self.jump.list_url)
+
+            return render(req, 'edit.html', {'data': form,'req':req})
+
+    #显示月租金
+
+    def cost(self, row=None, is_title=None):
+
+        if is_title:
+
+            return '月租/元'
+
+        obj = models.Host.objects.filter(pk=row.id).first()
+
+        try:
+
+            return obj.remarks
+
+        except:
+
+            return ''
+
+    #监控
+
+    def monitor(self, req, nid):
+
+        if req.method == 'GET':
+
+            start\_time,end\_time=time\_class.Time().ali\_def_monitor()
+
+            obj = self.model_class.objects.filter(id=nid)
+
+            monitor_obj=obj.first().hm.filter(
+
+                # timestamp__gte='2018-08-10T06:49:58Z',
+
+                # timestamp__lte='2018-08-10T06:54:58Z')
+
+                timestamp\_\_gte=start\_time,
+
+                timestamp\_\_lte=end\_time)
+
+            #默认请求
+
+            return render(req, 'monitor.html', locals())
+
+        else:
+
+            get_dic=req.POST
+
+            if get_dic.get('tag'):
+
+                #有条件
+
+                pass
+
+            else:
+
+                #无条件
+
+                obj_li=models.Host.objects.filter(id=nid)
+
+            obj = self.model_class.objects.filter(id=nid).delete()
+
+            self.site.\_log\_in\_db(req, url=self.site.delete\_log_url,
+
+                            proj=self.site.mod, action='del', msg='del_' + self.site.mod)
+
+            return redirect(self.jump.list_url)
+
+    def add(self,req):
+
+        dynamic\_form=self.get\_model_form()
+
+        if req.method=='GET':
+
+            form=dynamic_form()
+
+            form.fields.pop('logining')
+
+            # print(form.clean_logining())
+
+            return render(req,'hosts/add.html',{'data':form,'req':req})
+
+        else:
+
+            form=dynamic_form(data=req.POST)
+
+            if form.is_valid():
+
+                form.save()
+
+                self.\_log\_in\_db(req, url=self.add\_log_url,
+
+                        proj=self.mod, action='add', msg='add' + self.mod)
+
+                return redirect(self.jump.list_url)
+
+            return render(req, 'hosts/add.html', {'data': form,'req':req})
+
+    def app\_name(self,row=None,is\_title=None):
+
+        if is_title:
+
+            return '应用'
+
+        obj = models.Host.objects.filter(pk=row.id).first()
+
+        str='<a href="/water/rbac/app/list.html?k={0}">{1}</a>'
+
+        #删除结尾数字
+
+        ret=''
+
+        for item in obj.apphost.all():
+
+            ret+=str.format(item.name.rstrip(string.digits),item.name.rstrip(string.digits))
+
+        return mark_safe(ret)
+
+    list\_display = \['hostname',app\_name,'cpu','mem',disk,'eth1\_network','eth0\_network'\]
+
+    # list\_display = \['hostname',app\_name,'cpu','mem',disk,'eth1\_network','eth0\_network'\]
+
+    search\_list = \['eth1\_network\_\_contains','eth0\_network\_\_contains','hostname\_\_contains'\]
+
+v1.site.register(models.Host, HostConfig)
+
+class VpcNetConfig(v1.AryaConfig):
+
+    list_display = \['title',\]
+
+v1.site.register(models.VpcNet, VpcNetConfig)
+
+class VpcSwitchConfig(v1.AryaConfig):
+
+    list_display = \['title',\]
+
+v1.site.register(models.VpcSwitch, VpcSwitchConfig)
+
+class SourceConfig(v1.AryaConfig):
+
+    list_display = \['name'\]
+
+v1.site.register(models.Source, SourceConfig)
+
+#应用
+
+class AppConfig(v1.AryaConfig):
+
+    def get\_model\_form(self):
+
+        if self.model_f:
+
+            return self.model_f
+
+        class Dynamic(ModelForm):
+
+            class Meta:
+
+                model=self.model_class
+
+                fields='\_\_all\_\_'
+
+                # widgets={
+
+                #     'hosts':widgets.Select(attrs={'size':10}),
+
+                # }
+
+        return Dynamic
+
+    def ab(self,row=None,is_title=None):
+
+        if is_title:
+
+            return 'AB组'
+
+        ret = models.App.objects.filter(pk=row.id).first().get\_ab\_display()
+
+        return ret
+
+    def environment(self,row=None,is_title=None):
+
+        if is_title:
+
+            return '主机环境'
+
+        ret = models.App.objects.filter(pk=row.id).first().get\_environment\_display()
+
+        return ret
+
+    def app\_name(self,row=None,is\_title=None):
+
+        if is_title:
+
+            return '应用'
+
+        obj = models.App.objects.filter(pk=row.id).first()
+
+        str='<a href="/water/rbac/app/list.html?k={0}">{1}</a>'
+
+        #删除结尾数字
+
+        q_str=obj.name.rstrip(string.digits)
+
+        ret=str.format(q\_str,q\_str)
+
+        return mark_safe(ret)
+
+    def hosts(self,row=None,is_title=None):
+
+        if is_title:
+
+            return '主机列表'
+
+        value\_list = models.App.objects.filter(pk=row.id).values('hosts\_\_eth0_network')
+
+        str='<a href="/water/rbac/host/list.html?q={0}">{1}</a>'
+
+        ret=''
+
+        for value in value_list:
+
+            val=value\['hosts\_\_eth0\_network'\]
+
+            jg_str=str.format(val,val)
+
+            ret+=jg_str
+
+        return mark_safe(ret)
+
+    def list(self,req):
+
+        self.request=req
+
+        pteam\_obj = req.session.get(settings.PTEAM\_OBJ)
+
+        if req.GET.get('pteamrole') or req.GET.get('ab') or req.GET.get('environment'):
+
+            get_pteamrole=req.GET.get('pteamrole','')
+
+            get_ab=req.GET.get('ab','')
+
+            get_environment=req.GET.get('environment','')
+
+            search_q = req.GET.get('q','')
+
+            candition_q = Q()
+
+            search\_list = self.aget.get\_search_list()
+
+            if search\_list and search\_q:
+
+                for search\_item in search\_list:
+
+                    temp_q = Q()
+
+                    temp\_q.children.append((search\_item, search_q))
+
+                    candition\_q.add(temp\_q, 'OR')
+
+            get\_ab\_tag=''
+
+            get\_environment\_tag=''
+
+            filter_q={}
+
+            if get_pteamrole:
+
+                filter\_q\['pteamrole\_\_groupname'\]=get_pteamrole
+
+            if get_ab:
+
+                for i in models.App.ab_choices:
+
+                    if get_ab in i :
+
+                        filter_q\['ab'\]=i\[0\]
+
+                        continue
+
+            if get_environment:
+
+                for i in models.App.environment_choices:
+
+                    if get_environment in i :
+
+                        filter_q\['environment'\]=i\[0\]
+
+                        continue
+
+            if pteam_obj != 1:
+
+                app\_list = req.session.get(settings.PERMISSION\_HOST)\['app'\]
+
+                queryset = models.App.objects.filter(candition\_q,**filter\_q,pk\_\_in=app\_list).order_by('-id')
+
+            else:
+
+                queryset=models.App.objects.filter(candition\_q,**filter\_q).order_by('-id')
+
+        #通过点击A标签的跳转
+
+        elif req.GET.get('k'):
+
+            self.request = req
+
+            search_q = req.GET.get('k')
+
+            candition_q = Q()
+
+            #拿到需要匹配的列表
+
+            accurate\_list = self.aget.get\_accurate_list()
+
+            if accurate\_list and search\_q:
+
+                for accurate\_item in accurate\_list:
+
+                    #由于测试、灰度环境的应用名不带数字，生产环境的带数字，所以要匹配到xxx1,xxx,xxx2等
+
+                    ser\_li=\['','temp\_a', 'temp\_b', 'temp\_c', 'temp\_d', 'temp\_e'\]
+
+                    for i in ser_li:
+
+                        #列表第一个值为了匹配 没有数字的(灰度，测试等环境)
+
+                        JG=str(ser\_li.index(i)) if ser\_li.index(i) !=0 else ''
+
+                        # JG=str(ser_li.index(i) + 1)
+
+                        i = Q()
+
+                        #拼接生产环境的字符串偶偶额怒
+
+                        i.children.append((accurate\_item, search\_q+JG))
+
+                        candition_q.add(i, 'OR')
+
+            if pteam_obj != 1:
+
+                #获取 权限所能看见的主机列表
+
+                app\_list = req.session.get(settings.PERMISSION\_HOST)\['app'\]
+
+                queryset = models.App.objects.filter(candition\_q, pk\_\_in=app\_list).order\_by('-id')
+
+            else:
+
+                queryset = models.App.objects.filter(candition\_q).order\_by('-id')
+
+        else:
+
+            self.request = req
+
+            search_q = req.GET.get('q')
+
+            candition_q = Q()
+
+            search\_list = self.aget.get\_search_list()
+
+            if search\_list and search\_q:
+
+                for search\_item in search\_list:
+
+                    temp_q = Q()
+
+                    temp\_q.children.append((search\_item, search_q))
+
+                    candition\_q.add(temp\_q, 'OR')
+
+            if pteam_obj != 1:
+
+                app\_list = req.session.get(settings.PERMISSION\_HOST)\['app'\]
+
+                queryset = models.App.objects.filter(candition\_q,pk\_\_in=app\_list).order\_by('-id')
+
+            else:
+
+                queryset = models.App.objects.filter(candition\_q).order\_by('-id')
+
+        data = v1.ChangeList(self, queryset)
+
+        return render(req, 'list.html', {'data': data, 'req': req})
+
+    list\_display = \[app\_name, 'pteamrole',ab,environment,hosts\]
+
+    search\_list = \['name\_\_contains',
+
+                    'hosts\_\_eth0\_network__contains',
+
+                    # 'name'
+
+                    \]
+
+    accurate_list=\['name',\]
+
+    def search\_button\_list(self):
+
+        button_list = \[
+
+            \['项目组', \[\], 'pteamrole'\],
+
+            \['组', \['A', 'B', 'VPC'\], 'ab'\],
+
+            \['环境', \['开发环境', '测试环境', '灰度环境', '压测环境', '生产环境'\], 'environment'\]
+
+        \]
+
+        obj_l=models.Pteam.objects.all()
+
+        for obj in obj_l:
+
+            button_list\[0\]\[1\].append(obj.groupname)
+
+        return button_list
+
+v1.site.register(models.App, AppConfig)
+admin.py
+
+代码
+
+from django.contrib import admin
+
+from rbac import models
+
+#主机
+
+admin.site.register(models.Lable)
+
+admin.site.register(models.Memory)
+
+admin.site.register(models.Disk)
+
+admin.site.register(models.Os)
+
+admin.site.register(models.Host)
+
+\# admin.site.register(models.Network)
+
+admin.site.register(models.Source)
+
+admin.site.register(models.Login)
+
+#业务
+
+admin.site.register(models.App)
+
+\# admin.site.register(models.AbroadPay)
+
+\# admin.site.register(models.CorePay)
+
+#中间件
+
+admin.site.register(models.ALiCloud)
+
+admin.site.register(models.Zookeeper)
+
+admin.site.register(models.Kafka)
+
+admin.site.register(models.Oss)
+
+admin.site.register(models.BacketName)
+
+admin.site.register(models.Consumer)
+
+admin.site.register(models.Producer)
+
+admin.site.register(models.Topic)
+
+admin.site.register(models.MqCase)
+
+admin.site.register(models.RabbitMQ)
+
+admin.site.register(models.Redis)
+
+admin.site.register(models.MysqlLogin)
+
+admin.site.register(models.DataBase)
+
+\# admin.site.register(models.MysqlCase)
+
+admin.site.register(models.Mysql)
+
+admin.site.register(models.Ftp)
+
+admin.site.register(models.Svn)
+
+admin.site.register(models.SvnGroup)
+settings.py
+
+代码
+
+from \_\_future\_\_ import absolute_import
+
+"""
+
+Django settings for CMDB project.
+
+Generated by 'django-admin startproject' using Django 1.9.8.
+
+For more information on this file, see
+
+https://docs.djangoproject.com/en/1.9/topics/settings/
+
+For the full list of settings and their values, see
+
+https://docs.djangoproject.com/en/1.9/ref/settings/
+
+"""
+
+import os
+
+\# Build paths inside the project like this: os.path.join(BASE_DIR, ...)
+
+BASE\_DIR = os.path.dirname(os.path.dirname(os.path.abspath(\_\_file__)))
+
+\# Quick-start development settings - unsuitable for production
+
+\# See https://docs.djangoproject.com/en/1.9/howto/deployment/checklist/
+
+\# SECURITY WARNING: keep the secret key used in production secret!
+
+SECRET\_KEY = 'nbyv#ob%@3@9214+!6n31\_)4c08-@%45n5\*mb7\*$el7jl2#s!^'
+
+\# SECURITY WARNING: don't run with debug turned on in production!
+
+DEBUG = True
+
+APPEND_SLASH = False
+
+ALLOWED_HOSTS = \['*',\]
+
+\# Application definition
+
+from django.contrib import admin
+
+from django.contrib.admin.apps import AdminConfig
+
+INSTALLED_APPS = \[
+
+    'django.contrib.admin',
+
+    'django.contrib.auth',
+
+    'django.contrib.contenttypes',
+
+    'django.contrib.sessions',
+
+    'django.contrib.messages',
+
+    'django.contrib.staticfiles',
+
+    'water.apps.WaterConfig',
+
+    'corsheaders',
+
+    'rbac',
+
+    'app01',
+
+    'db',
+
+    'release',
+
+    'clientapi',
+
+    'rest_framework',
+
+    'djcelery',
+
+    'VueApi',
+
+\]
+
+#from rbac.middlewares.rbac import RbacMiddleware
+
+MIDDLEWARE_CLASSES = \[
+
+    'django.middleware.security.SecurityMiddleware',
+
+    'django.contrib.sessions.middleware.SessionMiddleware',
+
+    'corsheaders.middleware.CorsMiddleware',
+
+    'django.middleware.common.CommonMiddleware',
+
+    'django.middleware.csrf.CsrfViewMiddleware',
+
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+
+    'django.contrib.auth.middleware.SessionAuthenticationMiddleware',
+
+    'django.contrib.messages.middleware.MessageMiddleware',
+
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+
+    # 'rbac.middlewares.rbac.RbacMiddleware',
+
+\]
+
+ROOT_URLCONF = 'CMDB.urls'
+
+TEMPLATES = \[
+
+    {
+
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+
+        'DIRS': \[os.path.join(BASE_DIR, 'templates')\]
+
+        ,
+
+        'APP_DIRS': True,
+
+        'OPTIONS': {
+
+            'context_processors': \[
+
+                'django.template.context_processors.debug',
+
+                'django.template.context_processors.request',
+
+                'django.contrib.auth.context_processors.auth',
+
+                'django.contrib.messages.context_processors.messages',
+
+            \],
+
+        },
+
+    },
+
+\]
+
+WSGI_APPLICATION = 'CMDB.wsgi.application'
+
+DATA\_UPLOAD\_MAX\_MEMORY\_SIZE = 10000000000
+
+\# Database
+
+\# https://docs.djangoproject.com/en/1.9/ref/settings/#databases
+
+DATABASES = {
+
+    'default': {
+
+        'ENGINE': 'django.db.backends.mysql',
+
+        'NAME': 'cmdb',
+
+        'USER': 'cmdb_user',
+
+        'PASSWORD': 'onda1478963',
+
+        'HOST': '61.153.96.142',
+
+        'PORT': '3307',
+
+    }
+
+}
+
+AUTH\_PASSWORD\_VALIDATORS = \[
+
+    {
+
+        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+
+    },
+
+    {
+
+        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+
+    },
+
+    {
+
+        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+
+    },
+
+    {
+
+        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+
+    },
+
+\]
+
+\# Internationalization
+
+\# https://docs.djangoproject.com/en/1.9/topics/i18n/
+
+LANGUAGE_CODE = 'en-us'
+
+TIME_ZONE = 'Asia/Shanghai'
+
+\# TIME_ZONE = 'UTC'
+
+USE_I18N = True
+
+USE_L10N = True
+
+USE_TZ = False
+
+\# USE_TZ = True
+
+\# Static files (CSS, JavaScript, Images)
+
+\# https://docs.djangoproject.com/en/1.9/howto/static-files/
+
+STATIC_URL = '/static/'
+
+STATICFILES_DIRS = (
+
+    # os.path.join(BASE_DIR, "static"),
+
+    os.path.join(BASE_DIR, "water/static"),
+
+)
+
+####################配置变量###############
+
+PERMISSION\_URL\_DICT_KEY='dafsessiondfd'
+
+VALID_URL=('/water/login/','/water/register/','/water/logout/',
+
+           '/water/ali\_client\_api.html/','/water/ali_main.html/',
+
+           '/water/ali\_func.html/','/water/alirds\_func.html/',
+
+           '/water/celery_status.html/','/log/',
+
+           '/water/alirds\_client\_api.html/','/water/db_func.html/',
+
+            '/water/sendmail/','/water/home/','/package/','/test.html',
+
+            '/code.html','/api/release/','/static/','/admin/*','/api/auth/',
+
+           '/vueapi','/test','/login/test/'
+
+           )
+
+SESSION\_COOKIE\_AGE=60\*60\*3   #session 保存时间，3小时
+
+SESSION\_EXPIRE\_AT\_BROWSER\_CLOSE=True
+
+CODEIMG='fsadcodef'
+
+USER='userresu'
+
+USERID='idusersuid'
+
+PERMISSION_HOST='fdasfqw'
+
+PTEAM_OBJ='fdasfaegth'
+
+PERMISSION\_MENU\_KEY='dfadfew'
+
+PERMISSION\_AUTH\_KEY='dfadsfqwew'
+
+HTTP_URL='http://127.0.0.1:8000'
+
+\# HTTP_URL='http://10.45.138.187'
+
+LOG_PATH=(
+
+    os.path.join(BASE_DIR, "log/error.log"),
+
+    os.path.join(BASE_DIR, "log/password.log"),
+
+    os.path.join(BASE\_DIR, "log/release\_api.log"),
+
+)
+
+#######ali_api
+
+ACCESSKEY_ID='LTAIH9CwyQbfA0h3'
+
+ACCESSKEY_KEY='lY8NnmUIFpfyYFXRs3IHVXhC2Ou6tZ'
+
+###########restframework
+
+REST_FRAMEWORK = {
+
+    # "DEFAULT\_VERSIONING\_CLASS":"rest_framework.versioning.URLPathVersioning",
+
+    # 'ALLOWED_VERSIONS':\['v1','v1'\],
+
+    # "DEFAULT_VERSION":'v1',
+
+    "UNAUTHENTICATED_USER":None,
+
+    "UNAUTHENTICATED_TOKEN":None,
+
+    # "UNAUTHENTICATED_USER":lambda :None,
+
+    # "UNAUTHENTICATED_TOKEN":lambda :None,
+
+    'DEFAULT\_AUTHENTICATION\_CLASSES': \['release.utlis.api_auth.TokenAuthtication',\]
+
+}
+
+#跨域增加忽略
+
+CORS\_ALLOW\_CREDENTIALS = True
+
+CORS\_ORIGIN\_ALLOW_ALL = True
+
+CORS\_ORIGIN\_WHITELIST = ()
+
+CORS\_ALLOW\_METHODS = (
+
+    'DELETE',
+
+    'GET',
+
+    'OPTIONS',
+
+    'PATCH',
+
+    'POST',
+
+    'PUT',
+
+    'VIEW',
+
+)
+
+\# CORS\_ALLOW\_HEADERS = ('*')
+
+CORS\_ALLOW\_HEADERS = (
+
+    'content-disposition',
+
+    'accept',
+
+    'accept-encoding',
+
+    'authorization',
+
+    'Authorization',
+
+    'content-type',
+
+    'dnt',
+
+    'origin',
+
+    'user-agent',
+
+    'x-csrftoken',
+
+    'x-requested-with',
+
+)
+
+#################client################
+
+\# SALT_API='https://101.201.141.232:8001/'
+
+\# SALT_USERNAME='saltapi'
+
+\# SALT_PASSWORD='123@qwe'
+
+########celery
+
+import djcelery
+
+from celery.schedules import crontab
+
+from datetime import timedelta
+
+djcelery.setup_loader()
+
+CELERY\_TIMEZONE = TIME\_ZONE
+
+BROKER_URL='redis://:onda@47.93.86.201:6379/1'
+
+CELERY\_RESULT\_BACKEND='redis://:onda@47.93.86.201:6379/2'
+
+CELERY\_ACCEPT\_CONTENT = \['application/json'\]
+
+CELERY\_TASK\_SERIALIZER = 'json'
+
+CELERY\_RESULT\_SERIALIZER = 'json'
+
+CELERY_TIMEZONE = 'Africa/Nairobi'
+
+CELERY_IMPORTS=\['app01.task','clientapi.task'\]
+
+CELERYD\_MAX\_TASKS\_PER\_CHILD = 3
+
+CELERYBEAT_SCHEDULER = 'djcelery.schedulers.DatabaseScheduler'
+apps.py
+
+代码
+
+from django.apps import AppConfig
+
+from django.utils.module\_loading import autodiscover\_modules
+
+class WaterConfig(AppConfig):
+
+    name = 'water'
+
+    def ready(self):
+
+        autodiscover_modules('water')
